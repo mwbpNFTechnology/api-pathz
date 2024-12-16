@@ -1,11 +1,12 @@
-// app/api/getNfts/route.js
+// app/api/getNFTs/route.js
 
 import axios from 'axios';
 
 // Define allowed origins
 const ALLOWED_ORIGIN = 'https://dapp.pathz.xyz';
 
-export async function OPTIONS(request) {
+// Handle preflight OPTIONS requests
+export async function OPTIONS(_request) {
   return new Response(null, {
     status: 204,
     headers: {
