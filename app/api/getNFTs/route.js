@@ -2,6 +2,20 @@
 
 import axios from 'axios';
 
+// Define allowed origins
+const ALLOWED_ORIGIN = 'https://dapp.pathz.xyz';
+
+export async function OPTIONS(request) {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  });
+}
+
 export async function GET(request) {
   try {
     // Parse query parameters from the request URL
@@ -14,14 +28,26 @@ export async function GET(request) {
     if (!walletAddress) {
       return new Response(
         JSON.stringify({ error: 'Missing walletAddress parameter' }),
-        { status: 400 }
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
+          },
+        }
       );
     }
 
     if (!nftContract) {
       return new Response(
         JSON.stringify({ error: 'Missing nftContract parameter' }),
-        { status: 400 }
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
+          },
+        }
       );
     }
 
@@ -33,7 +59,13 @@ export async function GET(request) {
         JSON.stringify({
           error: 'Alchemy API key not configured in environment variables',
         }),
-        { status: 500 }
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
+          },
+        }
       );
     }
 
@@ -48,7 +80,13 @@ export async function GET(request) {
         JSON.stringify({
           error: 'Invalid network parameter. Use "mainnet" or "sepolia".',
         }),
-        { status: 400 }
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
+          },
+        }
       );
     }
 
@@ -71,7 +109,7 @@ export async function GET(request) {
       media: nft.media,
     }));
 
-    // Return the simplified result
+    // Return the simplified result with CORS headers
     return new Response(
       JSON.stringify({
         nfts: nftData,
@@ -80,6 +118,7 @@ export async function GET(request) {
         status: 200,
         headers: {
           'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
         },
       }
     );
@@ -90,7 +129,13 @@ export async function GET(request) {
         error: 'Internal Server Error',
         details: error.message,
       }),
-      { status: 500 }
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
+        },
+      }
     );
   }
 }
