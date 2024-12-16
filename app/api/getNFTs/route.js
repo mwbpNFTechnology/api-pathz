@@ -65,22 +65,15 @@ export async function GET(request) {
     // Make the API request to Alchemy
     const response = await axios.request(options);
 
-    // Extract NFT data
-    const nftData = response.data.ownedNfts.map((nft) => {
-      return {
-        contractAddress: nft.contract.address,
-        tokenId: nft.id.tokenId,
-        title: nft.title,
-        description: nft.description,
-        metadata: nft.metadata,
-        media: nft.media,
-      };
-    });
+    // Extract only metadata and media from each NFT
+    const nftData = response.data.ownedNfts.map((nft) => ({
+      metadata: nft.metadata,
+      media: nft.media,
+    }));
 
-    // Return the result
+    // Return the simplified result
     return new Response(
       JSON.stringify({
-        totalCount: response.data.totalCount,
         nfts: nftData,
       }),
       {
