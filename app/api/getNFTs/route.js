@@ -6,7 +6,7 @@ import axios from 'axios';
 const ALLOWED_ORIGIN = 'https://dapp.pathz.xyz';
 
 // Handle preflight OPTIONS requests
-export async function OPTIONS(_request) {
+export async function OPTIONS(_) {
   return new Response(null, {
     status: 204,
     headers: {
