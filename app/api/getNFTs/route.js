@@ -12,7 +12,7 @@ export async function OPTIONS(_) {
     headers: {
       'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
       'Access-Control-Allow-Methods': 'GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, Pragma, Cache-Control, Authorization',
     },
   });
 }
@@ -94,7 +94,7 @@ export async function GET(request) {
     // Set up options for the Axios request
     const options = {
       method: 'GET',
-      url: `${baseURL}/getNFTs/`,
+      url: `${baseURL}/getNFTs`, // Ensure no trailing slash
       params: {
         owner: walletAddress,
         contractAddresses: [nftContract],
@@ -125,6 +125,12 @@ export async function GET(request) {
     );
   } catch (error) {
     console.error('Error fetching NFTs:', error);
+
+    // Log Alchemy API response if available
+    if (error.response) {
+      console.error('Alchemy API Response:', error.response.data);
+    }
+
     return new Response(
       JSON.stringify({
         error: 'Internal Server Error',
