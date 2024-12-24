@@ -190,7 +190,7 @@ export async function GET(request) {
 
     const responseBody = {
       nfts: nftData,
-      currectPathStory: {
+      currentPathStory: {
         deadlineTimestamp: finalDeadlineTimestamp, // e.g. "1735386332"
         active: finalActive,                      // e.g. false
         baseURL: baseURLValue,                    // e.g. "https://someURL"
