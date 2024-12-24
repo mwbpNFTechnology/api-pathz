@@ -110,7 +110,7 @@ export async function GET(request) {
           const pathStoriesArr = readJson.result[4];    
 
           // Save finalDeadlineTimestamp, finalActive
-          finalDeadlineTimestamp = deadlineTimestamp;
+          finalDeadlineTimestamp = Number(deadlineTsStr);          ;
           finalActive = !!active;
 
           // 2a) Update NFT treePath
@@ -191,7 +191,7 @@ export async function GET(request) {
     const responseBody = {
       nfts: nftData,
       currectPathStory: {
-        deadlineTimestamp: finalDeadlineTimestamp, // e.g. "1735386332"
+        deadlineTimestamp: finalDeadlineTimestamp, // e.g. 1735386332
         active: finalActive,                      // e.g. false
         baseURL: baseURLValue,                    // e.g. "https://someURL"
         pathStoryDetails,                         // e.g. last element from allPathStoriesDetails
