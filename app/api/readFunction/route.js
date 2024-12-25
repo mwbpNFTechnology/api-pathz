@@ -38,7 +38,7 @@ export async function GET(request) {
 
     const provider = new JsonRpcProvider(networkUrls[network]);
 
-    const contractAddress = '0x8795C45c8A195ecbA26EbB2e83cC7279150BA95e'; // Replace with your actual contract address
+    const contractAddress = '0x0c85255c89e26FfB69fd01A5E74566a88B7FD85e'; // Replace with your actual contract address
     const contractAbi = [
       {
         "inputs": [
