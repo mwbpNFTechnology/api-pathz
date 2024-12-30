@@ -701,23 +701,31 @@ export async function GET(request) {
           // Build allPathStoriesDetails
           if (Array.isArray(pathStoriesArr)) {
             allPathStoriesDetails = pathStoriesArr.map((ps) => {
-              // e.g., ps = [ pathStoryNumber, pathStoryCID, characterTraitsHistoryCID, { resultCIDs, increaseCIDs, decKeys: { key, iv } } ]
+              // e.g., ps = [ pathStoryNumber, pathStoryCID, characterTraitsHistoryCID, encObj ]
+              // encObj is actually [resultCIDs, increaseCIDs, [key, iv]]
+          
               const pathStoryNumber = Number(ps[0]);
-              const pathStoryCID = ps[1] || '';
-              const characterTraitsHistoryCID = ps[2] || '';
-              const encObj = ps[3] || {};
-
+              const pathStoryCID = ps[1] || "";
+              const characterTraitsHistoryCID = ps[2] || "";
+              const encObj = ps[3] || [];
+          
+              // Destructure encObj array
+              const [resultCIDsValue, increaseCIDsValue, decKeysArr] = encObj;
+          
+              // decKeysArr should be ["EfN%ISxTh@xnDTcmT=jO=f203@9iy311", "zmeOijqNpC0Mi!&G"]
+              const [theKey, theIV] = Array.isArray(decKeysArr) ? decKeysArr : ["", ""];
+          
               return {
                 pathStoryNumber,
                 pathStoryCID,
                 characterTraitsHistoryCID,
-                pathResultsCID: encObj.resultCIDs || '',
-                pathIncreasesCID: encObj.increaseCIDs || '',
-                decKey: encObj.decKeys?.key || '',
-                decIV: encObj.decKeys?.iv || '',
+                pathResultsCID: resultCIDsValue || "",
+                pathIncreasesCID: increaseCIDsValue || "",
+                decKey: theKey || "",
+                decIV: theIV || "",
               };
             });
-          }
+          }          
         }
       } catch (err) {
         console.error('Error calling getAllPathStories:', err);
