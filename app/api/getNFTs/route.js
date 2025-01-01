@@ -21,8 +21,10 @@ export const runtime = 'nodejs';
  */
 function setCorsHeaders(response, origin) {
   response.headers.set('Access-Control-Allow-Origin', origin);
-  response.headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Pragma, Cache-Control, Authorization');
+  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  response.headers.set('Access-Control-Allow-Credentials', 'true'); // If cookies or credentials are needed
+  response.headers.set('Access-Control-Allow-Origin', '*');
   return response;
 }
 
