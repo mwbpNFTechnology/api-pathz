@@ -8,6 +8,7 @@ const ALLOWED_ORIGINS = [
   'https://dapp.pathz.xyz',
   'https://stackblitz.com',
   'https://zp1v56uxy8rdx5ypatb0ockcb9tr6a-oci3--5173--c8c182a3.local-credentialless.webcontainer-api.io',
+  
 ];
 
 // Optional: Node.js runtime for Next.js
@@ -24,6 +25,7 @@ function setCorsHeaders(response, origin) {
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   response.headers.set('Access-Control-Allow-Credentials', 'true'); // If cookies or credentials are needed
+  response.headers.set('Access-Control-Allow-Origin', '*');
   return response;
 }
 
