@@ -38,14 +38,13 @@ export async function GET(request) {
 
     const provider = new JsonRpcProvider(networkUrls[network]);
 
-    const contractAddress = '0x0c85255c89e26FfB69fd01A5E74566a88B7FD85e'; // Replace with your actual contract address
+    const contractAddress = '0x086F77c595c94905Acb15C28Dfd4DaF0f1AdD77F'; // Replace with your actual contract address
     const contractAbi = [
       {
         "inputs": [
           { "internalType": "uint256", "name": "_pathStoryDeadlineTimestamp", "type": "uint256" },
           { "internalType": "string", "name": "_pathStoriesCID", "type": "string" },
-          { "internalType": "string", "name": "_encPathResultCID", "type": "string" },
-          { "internalType": "string", "name": "_encPathIncreaseCID", "type": "string" },
+          { "internalType": "string", "name": "_encResultAndIncreaseCID", "type": "string" },
           { "internalType": "string", "name": "_baseURL", "type": "string" },
           { "internalType": "address", "name": "_pathzNFTContractAddress", "type": "address" },
           { "internalType": "address", "name": "_pathzVRFContractAddress", "type": "address" }
@@ -146,8 +145,7 @@ export async function GET(request) {
         ],
         "name": "encryptionPathStoriesCIDs",
         "outputs": [
-          { "internalType": "string", "name": "resultCIDs", "type": "string" },
-          { "internalType": "string", "name": "increaseCIDs", "type": "string" },
+          { "internalType": "string", "name": "resultAndIncreaseCID", "type": "string" },
           {
             "components": [
               { "internalType": "string", "name": "key", "type": "string" },
@@ -207,8 +205,7 @@ export async function GET(request) {
               { "internalType": "string", "name": "characterTraitsHistoryCID", "type": "string" },
               {
                 "components": [
-                  { "internalType": "string", "name": "resultCIDs", "type": "string" },
-                  { "internalType": "string", "name": "increaseCIDs", "type": "string" },
+                  { "internalType": "string", "name": "resultAndIncreaseCID", "type": "string" },
                   {
                     "components": [
                       { "internalType": "string", "name": "key", "type": "string" },
@@ -251,8 +248,7 @@ export async function GET(request) {
         "outputs": [
           {
             "components": [
-              { "internalType": "string", "name": "resultCIDs", "type": "string" },
-              { "internalType": "string", "name": "increaseCIDs", "type": "string" },
+              { "internalType": "string", "name": "resultAndIncreaseCID", "type": "string" },
               {
                 "components": [
                   { "internalType": "string", "name": "key", "type": "string" },
@@ -451,8 +447,7 @@ export async function GET(request) {
           { "internalType": "uint16", "name": "_pathStoryNumber", "type": "uint16" },
           { "internalType": "uint256", "name": "_pathStoryDeadlineTimestamp", "type": "uint256" },
           { "internalType": "string", "name": "_pathStoriesCID", "type": "string" },
-          { "internalType": "string", "name": "_encPathResultCID", "type": "string" },
-          { "internalType": "string", "name": "_encPathIncreaseCID", "type": "string" }
+          { "internalType": "string", "name": "_encResultAndIncreaseCID", "type": "string" }
         ],
         "name": "startNewPathStory",
         "outputs": [],
@@ -508,8 +503,7 @@ export async function GET(request) {
           { "internalType": "uint16", "name": "_pathStoryNumber", "type": "uint16" },
           {
             "components": [
-              { "internalType": "string", "name": "resultCIDs", "type": "string" },
-              { "internalType": "string", "name": "increaseCIDs", "type": "string" },
+              { "internalType": "string", "name": "resultAndIncreaseCID", "type": "string" },
               {
                 "components": [
                   { "internalType": "string", "name": "key", "type": "string" },
@@ -549,7 +543,7 @@ export async function GET(request) {
         "stateMutability": "nonpayable",
         "type": "function"
       }
-    ];       // Your contract ABI here
+    ];
 
     const contract = new Contract(contractAddress, contractAbi, provider);
     let result;

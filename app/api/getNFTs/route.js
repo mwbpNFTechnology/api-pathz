@@ -24,7 +24,6 @@ function setCorsHeaders(response, origin) {
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   response.headers.set('Access-Control-Allow-Credentials', 'true'); // If cookies or credentials are needed
-  response.headers.set('Access-Control-Allow-Origin', '*');
   return response;
 }
 
@@ -148,7 +147,7 @@ export async function GET(request) {
         const provider = new JsonRpcProvider(networkUrls[network]);
 
         // Your contract address and ABI
-        const contractAddress = '0x0c85255c89e26FfB69fd01A5E74566a88B7FD85e'; // Replace with your actual contract address
+        const contractAddress = '0x086F77c595c94905Acb15C28Dfd4DaF0f1AdD77F'; // Replace with your actual contract address
         const contractAbi = [
           {
             "inputs": [
@@ -256,8 +255,7 @@ export async function GET(request) {
             ],
             "name": "encryptionPathStoriesCIDs",
             "outputs": [
-              { "internalType": "string", "name": "resultCIDs", "type": "string" },
-              { "internalType": "string", "name": "increaseCIDs", "type": "string" },
+              { "internalType": "string", "name": "encPathResultAndIncreaseCID", "type": "string" },
               {
                 "components": [
                   { "internalType": "string", "name": "key", "type": "string" },
@@ -317,8 +315,7 @@ export async function GET(request) {
                   { "internalType": "string", "name": "characterTraitsHistoryCID", "type": "string" },
                   {
                     "components": [
-                      { "internalType": "string", "name": "resultCIDs", "type": "string" },
-                      { "internalType": "string", "name": "increaseCIDs", "type": "string" },
+                      { "internalType": "string", "name": "encPathResultAndIncreaseCID", "type": "string" },
                       {
                         "components": [
                           { "internalType": "string", "name": "key", "type": "string" },
@@ -361,8 +358,7 @@ export async function GET(request) {
             "outputs": [
               {
                 "components": [
-                  { "internalType": "string", "name": "resultCIDs", "type": "string" },
-                  { "internalType": "string", "name": "increaseCIDs", "type": "string" },
+                  { "internalType": "string", "name": "encPathResultAndIncreaseCID", "type": "string" },
                   {
                     "components": [
                       { "internalType": "string", "name": "key", "type": "string" },
@@ -561,8 +557,7 @@ export async function GET(request) {
               { "internalType": "uint16", "name": "_pathStoryNumber", "type": "uint16" },
               { "internalType": "uint256", "name": "_pathStoryDeadlineTimestamp", "type": "uint256" },
               { "internalType": "string", "name": "_pathStoriesCID", "type": "string" },
-              { "internalType": "string", "name": "_encPathResultCID", "type": "string" },
-              { "internalType": "string", "name": "_encPathIncreaseCID", "type": "string" }
+              { "internalType": "string", "name": "_encPathResultAndIncreaseCID", "type": "string" }
             ],
             "name": "startNewPathStory",
             "outputs": [],
@@ -618,8 +613,7 @@ export async function GET(request) {
               { "internalType": "uint16", "name": "_pathStoryNumber", "type": "uint16" },
               {
                 "components": [
-                  { "internalType": "string", "name": "resultCIDs", "type": "string" },
-                  { "internalType": "string", "name": "increaseCIDs", "type": "string" },
+                  { "internalType": "string", "name": "encPathResultAndIncreaseCID", "type": "string" },
                   {
                     "components": [
                       { "internalType": "string", "name": "key", "type": "string" },
@@ -659,7 +653,7 @@ export async function GET(request) {
             "stateMutability": "nonpayable",
             "type": "function"
           }
-        ];       // Your contract ABI here
+        ];
         const contract = new Contract(contractAddress, contractAbi, provider);
 
         const rawResult = await contract.getAllPathStories(pathzIDsParams);
@@ -704,30 +698,29 @@ export async function GET(request) {
           if (Array.isArray(pathStoriesArr)) {
             allPathStoriesDetails = pathStoriesArr.map((ps) => {
               // e.g., ps = [ pathStoryNumber, pathStoryCID, characterTraitsHistoryCID, encObj ]
-              // encObj is actually [resultCIDs, increaseCIDs, [key, iv]]
-          
+              // encObj is actually [encPathResultAndIncreaseCID, [key, iv]]
+
               const pathStoryNumber = Number(ps[0]);
               const pathStoryCID = ps[1] || "";
               const characterTraitsHistoryCID = ps[2] || "";
               const encObj = ps[3] || [];
-          
+
               // Destructure encObj array
-              const [resultCIDsValue, increaseCIDsValue, decKeysArr] = encObj;
-          
+              const [encPathResultAndIncreaseCIDValue, decKeysArr] = encObj;
+
               // decKeysArr should be ["EfN%ISxTh@xnDTcmT=jO=f203@9iy311", "zmeOijqNpC0Mi!&G"]
               const [theKey, theIV] = Array.isArray(decKeysArr) ? decKeysArr : ["", ""];
-          
+
               return {
                 pathStoryNumber,
                 pathStoryCID,
                 characterTraitsHistoryCID,
-                pathResultsCID: resultCIDsValue || "",
-                pathIncreasesCID: increaseCIDsValue || "",
+                encPathResultAndIncreaseCID: encPathResultAndIncreaseCIDValue || "",
                 decKey: theKey || "",
                 decIV: theIV || "",
               };
             });
-          }          
+          }
         }
       } catch (err) {
         console.error('Error calling getAllPathStories:', err);
