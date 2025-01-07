@@ -153,7 +153,7 @@ export async function GET(request) {
         const provider = new JsonRpcProvider(networkUrls[network]);
 
         // Your contract address
-        const contractAddress = '0x9aBf211FA2c94B2B01ee6384F2F86e184895fa4C';
+        const contractAddress = '0x63d6A9096a315cA8C580A992C533906733718A08';
 
         // -----------------------------------------------
         //      REPLACE OLD ABI WITH NEW ONE HERE
