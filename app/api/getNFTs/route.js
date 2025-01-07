@@ -20,17 +20,21 @@ export const runtime = 'nodejs';
  * @param {string} origin - The origin of the request.
  * @returns {Response} - The response with CORS headers set if origin is allowed.
  */
-function setCorsHeaders(response, origin) {
-  // If you want to limit it to the exact domain, omit the second set:
+ function setCorsHeaders(response, origin) {
+  // Set allowed methods, credentials, etc.
   response.headers.set('Access-Control-Allow-Origin', origin);
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  response.headers.set('Access-Control-Allow-Credentials', 'true'); // If cookies or credentials are needed
+  
+  // Add 'Pragma' to the allowed headers
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, Pragma');
+  response.headers.set('Access-Control-Allow-Credentials', 'true'); // If needed
 
-  // OR if you genuinely want to allow all after you verified the origin above:
-  response.headers.set('Access-Control-Allow-Origin', '*');
+  // Remove or adjust the wildcard setting if not required:
+  // response.headers.set('Access-Control-Allow-Origin', '*'); 
+  
   return response;
 }
+
 
 /**
  * Constructs an error response with appropriate CORS headers for allowed origins.
