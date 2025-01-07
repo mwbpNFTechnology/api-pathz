@@ -21,19 +21,22 @@ export const runtime = 'nodejs';
  * @returns {Response} - The response with CORS headers set if origin is allowed.
  */
  function setCorsHeaders(response, origin) {
-  // Set allowed methods, credentials, etc.
+  // Set the specific origin (remove wildcard if using credentials)
   response.headers.set('Access-Control-Allow-Origin', origin);
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  
-  // Add 'Pragma' to the allowed headers
-  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, Pragma');
-  response.headers.set('Access-Control-Allow-Credentials', 'true'); // If needed
 
-  // Remove or adjust the wildcard setting if not required:
-  // response.headers.set('Access-Control-Allow-Origin', '*'); 
-  
+  // Include Cache-Control along with other needed headers
+  response.headers.set(
+    'Access-Control-Allow-Headers', 
+    'Content-Type, Authorization, Pragma, Cache-Control'
+  );
+
+  // Allow credentials if necessary
+  response.headers.set('Access-Control-Allow-Credentials', 'true'); 
+
   return response;
 }
+
 
 
 /**
@@ -63,19 +66,16 @@ function errorResponse(message, statusCode, origin) {
 /**
  * Handles preflight OPTIONS requests. Disallows if origin is not in ALLOWED_ORIGINS.
  */
-export async function OPTIONS(request) {
+ export async function OPTIONS(request) {
   const origin = request.headers.get('Origin') || '';
-
-  // If the origin is not in ALLOWED_ORIGINS, return 403
   if (!ALLOWED_ORIGINS.includes(origin)) {
     return errorResponse('CORS Error: Origin not allowed', 403, origin);
   }
-
-  // Otherwise, allow the request
   const response = new Response(null, { status: 204 });
   setCorsHeaders(response, origin);
   return response;
 }
+
 
 /**
  * Main GET endpoint: fetches NFTs via Alchemy and then calls contract methods
