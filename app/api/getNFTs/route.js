@@ -9,7 +9,6 @@ const ALLOWED_ORIGINS = [
   'https://stackblitz.com',
   'https://zp1v56uxy8rdx5ypatb0ockcb9tr6a-oci3--5173--c8c182a3.local-credentialless.webcontainer-api.io',
   'https://cors-proxy-production.stackblitz.workers.dev'
-  
 ];
 
 // Optional: Node.js runtime for Next.js
@@ -22,10 +21,13 @@ export const runtime = 'nodejs';
  * @returns {Response} - The response with CORS headers set if origin is allowed.
  */
 function setCorsHeaders(response, origin) {
+  // If you want to limit it to the exact domain, omit the second set:
   response.headers.set('Access-Control-Allow-Origin', origin);
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   response.headers.set('Access-Control-Allow-Credentials', 'true'); // If cookies or credentials are needed
+
+  // OR if you genuinely want to allow all after you verified the origin above:
   response.headers.set('Access-Control-Allow-Origin', '*');
   return response;
 }
@@ -72,8 +74,9 @@ export async function OPTIONS(request) {
 }
 
 /**
- * Main GET endpoint: fetches NFTs via Alchemy and calls `getAllPathStories`
- * from your contract if there's at least one NFT with an `edition`.
+ * Main GET endpoint: fetches NFTs via Alchemy and then calls contract methods
+ *   - getAllPathStories
+ *   - getAllSurprises
  */
 export async function GET(request) {
   const origin = request.headers.get('Origin') || '';
@@ -139,25 +142,28 @@ export async function GET(request) {
     let baseURLValue = '';
     let allPathStoriesDetails = [];
 
-    // 7) If we have at least one NFT, call `getAllPathStories`
+    // 7) If we have at least one NFT, call `getAllPathStories` and then `getAllSurprises`
     if (pathzIDsParams.length > 0) {
       try {
-        // Inline logic for calling the contract (instead of /api/readFunction)
+        // Setup provider
         const networkUrls = {
           mainnet: `https://eth-mainnet.alchemyapi.io/v2/${apiKey}`,
           sepolia: `https://eth-sepolia.g.alchemy.com/v2/${apiKey}`,
         };
         const provider = new JsonRpcProvider(networkUrls[network]);
 
-        // Your contract address and ABI
-        const contractAddress = '0x086F77c595c94905Acb15C28Dfd4DaF0f1AdD77F'; // Replace with your actual contract address
+        // Your contract address
+        const contractAddress = '0x9aBf211FA2c94B2B01ee6384F2F86e184895fa4C';
+
+        // -----------------------------------------------
+        //      REPLACE OLD ABI WITH NEW ONE HERE
+        // -----------------------------------------------
         const contractAbi = [
           {
             "inputs": [
               { "internalType": "uint256", "name": "_pathStoryDeadlineTimestamp", "type": "uint256" },
               { "internalType": "string", "name": "_pathStoriesCID", "type": "string" },
-              { "internalType": "string", "name": "_encPathResultCID", "type": "string" },
-              { "internalType": "string", "name": "_encPathIncreaseCID", "type": "string" },
+              { "internalType": "string", "name": "_encResultAndIncreaseCID", "type": "string" },
               { "internalType": "string", "name": "_baseURL", "type": "string" },
               { "internalType": "address", "name": "_pathzNFTContractAddress", "type": "address" },
               { "internalType": "address", "name": "_pathzVRFContractAddress", "type": "address" }
@@ -209,15 +215,6 @@ export async function GET(request) {
             "type": "function"
           },
           {
-            "inputs": [],
-            "name": "baseURL",
-            "outputs": [
-              { "internalType": "string", "name": "", "type": "string" }
-            ],
-            "stateMutability": "view",
-            "type": "function"
-          },
-          {
             "inputs": [
               { "internalType": "uint16", "name": "", "type": "uint16" },
               { "internalType": "uint256", "name": "", "type": "uint256" }
@@ -258,7 +255,7 @@ export async function GET(request) {
             ],
             "name": "encryptionPathStoriesCIDs",
             "outputs": [
-              { "internalType": "string", "name": "encPathResultAndIncreaseCID", "type": "string" },
+              { "internalType": "string", "name": "resultAndIncreaseCID", "type": "string" },
               {
                 "components": [
                   { "internalType": "string", "name": "key", "type": "string" },
@@ -318,7 +315,7 @@ export async function GET(request) {
                   { "internalType": "string", "name": "characterTraitsHistoryCID", "type": "string" },
                   {
                     "components": [
-                      { "internalType": "string", "name": "encPathResultAndIncreaseCID", "type": "string" },
+                      { "internalType": "string", "name": "resultAndIncreaseCID", "type": "string" },
                       {
                         "components": [
                           { "internalType": "string", "name": "key", "type": "string" },
@@ -335,6 +332,27 @@ export async function GET(request) {
                   }
                 ],
                 "internalType": "struct OptimizePathzMultiversePortal.AllVars[]",
+                "name": "",
+                "type": "tuple[]"
+              }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+          },
+          {
+            "inputs": [],
+            "name": "getAllSurprises",
+            "outputs": [
+              {
+                "components": [
+                  { "internalType": "uint16", "name": "pathzID", "type": "uint16" },
+                  { "internalType": "string", "name": "pathTree", "type": "string" },
+                  { "internalType": "uint256", "name": "totalAnsweredPathz", "type": "uint256" },
+                  { "internalType": "uint256", "name": "randomNumber", "type": "uint256" },
+                  { "internalType": "string", "name": "whatGet", "type": "string" },
+                  { "internalType": "uint16[]", "name": "answeredPathzIDs", "type": "uint16[]" }
+                ],
+                "internalType": "struct OptimizePathzMultiversePortal.Surprise[]",
                 "name": "",
                 "type": "tuple[]"
               }
@@ -361,7 +379,7 @@ export async function GET(request) {
             "outputs": [
               {
                 "components": [
-                  { "internalType": "string", "name": "encPathResultAndIncreaseCID", "type": "string" },
+                  { "internalType": "string", "name": "resultAndIncreaseCID", "type": "string" },
                   {
                     "components": [
                       { "internalType": "string", "name": "key", "type": "string" },
@@ -467,45 +485,6 @@ export async function GET(request) {
           },
           {
             "inputs": [
-              { "internalType": "uint16", "name": "", "type": "uint16" },
-              { "internalType": "uint256", "name": "", "type": "uint256" }
-            ],
-            "name": "pathStoriesCIDs",
-            "outputs": [
-              { "internalType": "string", "name": "", "type": "string" }
-            ],
-            "stateMutability": "view",
-            "type": "function"
-          },
-          {
-            "inputs": [],
-            "name": "pathStoryDeadlineTimestamp",
-            "outputs": [
-              { "internalType": "uint256", "name": "", "type": "uint256" }
-            ],
-            "stateMutability": "view",
-            "type": "function"
-          },
-          {
-            "inputs": [],
-            "name": "pathStoryNumber",
-            "outputs": [
-              { "internalType": "uint16", "name": "", "type": "uint16" }
-            ],
-            "stateMutability": "view",
-            "type": "function"
-          },
-          {
-            "inputs": [],
-            "name": "pathStoryStart",
-            "outputs": [
-              { "internalType": "bool", "name": "", "type": "bool" }
-            ],
-            "stateMutability": "view",
-            "type": "function"
-          },
-          {
-            "inputs": [
               { "internalType": "string", "name": "choosedLetter", "type": "string" },
               { "internalType": "uint16", "name": "_pathzID", "type": "uint16" }
             ],
@@ -560,7 +539,7 @@ export async function GET(request) {
               { "internalType": "uint16", "name": "_pathStoryNumber", "type": "uint16" },
               { "internalType": "uint256", "name": "_pathStoryDeadlineTimestamp", "type": "uint256" },
               { "internalType": "string", "name": "_pathStoriesCID", "type": "string" },
-              { "internalType": "string", "name": "_encPathResultAndIncreaseCID", "type": "string" }
+              { "internalType": "string", "name": "_encResultAndIncreaseCID", "type": "string" }
             ],
             "name": "startNewPathStory",
             "outputs": [],
@@ -574,21 +553,6 @@ export async function GET(request) {
             "name": "transferOwnership",
             "outputs": [],
             "stateMutability": "nonpayable",
-            "type": "function"
-          },
-          {
-            "inputs": [
-              { "internalType": "uint16", "name": "", "type": "uint16" }
-            ],
-            "name": "treePathSurprises",
-            "outputs": [
-              { "internalType": "uint16", "name": "pathzID", "type": "uint16" },
-              { "internalType": "string", "name": "pathTree", "type": "string" },
-              { "internalType": "uint256", "name": "totalAnsweredPathz", "type": "uint256" },
-              { "internalType": "uint256", "name": "randomNumber", "type": "uint256" },
-              { "internalType": "string", "name": "whatGet", "type": "string" }
-            ],
-            "stateMutability": "view",
             "type": "function"
           },
           {
@@ -616,7 +580,7 @@ export async function GET(request) {
               { "internalType": "uint16", "name": "_pathStoryNumber", "type": "uint16" },
               {
                 "components": [
-                  { "internalType": "string", "name": "encPathResultAndIncreaseCID", "type": "string" },
+                  { "internalType": "string", "name": "resultAndIncreaseCID", "type": "string" },
                   {
                     "components": [
                       { "internalType": "string", "name": "key", "type": "string" },
@@ -657,12 +621,17 @@ export async function GET(request) {
             "type": "function"
           }
         ];
+        // -----------------------------------------------
+        // END REPLACEMENT
+        // -----------------------------------------------
+
         const contract = new Contract(contractAddress, contractAbi, provider);
 
+        // 1) Call getAllPathStories
         const rawResult = await contract.getAllPathStories(pathzIDsParams);
         const result = cleanBigInt(rawResult);
 
-        // Expect result to be array with at least 5 elements
+        // If result is valid, parse it
         if (Array.isArray(result) && result.length >= 5) {
           const newTreePaths = result[0];
           const deadlineTimestamp = result[1];
@@ -673,9 +642,11 @@ export async function GET(request) {
           finalDeadlineTimestamp = Number(deadlineTimestamp);
           finalActive = !!active;
 
-          // Update NFT metadata with the new treePaths
+          // Update NFT metadata with any treePaths returned
           if (Array.isArray(newTreePaths)) {
             const editionToPathMap = {};
+            // newTreePaths is array of [edition, treePath]
+            // e.g. [[2,"x-z"],[3,"x-y-z"]]
             for (const [editionStr, treePath] of newTreePaths) {
               editionToPathMap[Number(editionStr)] = treePath;
             }
@@ -684,6 +655,7 @@ export async function GET(request) {
               const edition = nftItem?.metadata?.edition;
               if (edition && editionToPathMap[edition]) {
                 const newPathValue = editionToPathMap[edition];
+                // Update or add "treePath" attribute
                 if (Array.isArray(nftItem.metadata?.attributes)) {
                   nftItem.metadata.attributes = nftItem.metadata.attributes.map((attr) => {
                     if (attr.trait_type === 'treePath') {
@@ -700,18 +672,13 @@ export async function GET(request) {
           // Build allPathStoriesDetails
           if (Array.isArray(pathStoriesArr)) {
             allPathStoriesDetails = pathStoriesArr.map((ps) => {
-              // e.g., ps = [ pathStoryNumber, pathStoryCID, characterTraitsHistoryCID, encObj ]
-              // encObj is actually [encPathResultAndIncreaseCID, [key, iv]]
-
+              // ps = [ pathStoryNumber, pathStoryCID, characterTraitsHistoryCID, encObj ]
+              // encObj = [resultAndIncreaseCID, [key, iv]]
               const pathStoryNumber = Number(ps[0]);
               const pathStoryCID = ps[1] || "";
               const characterTraitsHistoryCID = ps[2] || "";
               const encObj = ps[3] || [];
-
-              // Destructure encObj array
               const [encPathResultAndIncreaseCIDValue, decKeysArr] = encObj;
-
-              // decKeysArr should be ["EfN%ISxTh@xnDTcmT=jO=f203@9iy311", "zmeOijqNpC0Mi!&G"]
               const [theKey, theIV] = Array.isArray(decKeysArr) ? decKeysArr : ["", ""];
 
               return {
@@ -720,9 +687,49 @@ export async function GET(request) {
                 characterTraitsHistoryCID,
                 encPathResultAndIncreaseCID: encPathResultAndIncreaseCIDValue || "",
                 decKey: theKey || "",
-                decIV: theIV || "",
+                decIV: theIV || ""
               };
             });
+          }
+        }
+
+        // 2) Now call getAllSurprises
+        //    This returns an array where each index presumably matches
+        //    a path story number or similar. We'll attach each surprise
+        //    to the matching index in `allPathStoriesDetails`.
+        //    If there's any mismatch, adjust as needed for your logic.
+        let allSurprises = [];
+        try {
+          const rawSurprises = await contract.getAllSurprises();
+          allSurprises = cleanBigInt(rawSurprises); 
+          // allSurprises example:
+          // [
+          //   [2, "x-z", 2, <big number>, "glasses", [2,5]],
+          //   [1, "X-z-y", 5, <big number>, "Nickels", [1,2,3,4,5]]
+          // ]
+        } catch (err) {
+          console.error('Error calling getAllSurprises:', err);
+        }
+
+        // Merge surprises into allPathStoriesDetails
+        // The user’s snippet suggests the first array in allSurprises
+        // belongs to "pathStoryNumber=1", second to "pathStoryNumber=2", etc.
+        // So we can do a simple index-based merge. 
+        // If your logic differs, adjust accordingly.
+        for (let i = 0; i < allPathStoriesDetails.length; i++) {
+          const story = allPathStoriesDetails[i];
+          const surprise = allSurprises[i];
+          if (Array.isArray(surprise) && surprise.length >= 6) {
+            // shape: [pathzID, pathTree, totalAnsweredPathz, randomNumber, whatGet, answeredPathzIDs[]]
+            story.suprise = {
+              pathzID: surprise[0],
+              pathTree: surprise[1],
+              totalAnsweredPathz: surprise[2],
+              randomNumber: surprise[3],
+              // The snippet has some confusing repeated keys, but let's assume "whatGet" is correct:
+              whatGet: surprise[4],
+              answeredPathzIDs: surprise[5]
+            };
           }
         }
       } catch (err) {
@@ -731,6 +738,7 @@ export async function GET(request) {
     }
 
     // 8) Construct final response
+    // We'll pick the last item in allPathStoriesDetails as the "current path story"
     let pathStoryDetails = null;
     if (allPathStoriesDetails.length > 0) {
       pathStoryDetails = allPathStoriesDetails[allPathStoriesDetails.length - 1];
