@@ -76,7 +76,7 @@ export async function OPTIONS(request) {
 /**
  * Main GET endpoint: fetches NFTs via Alchemy and then calls contract methods
  *   - getAllPathStories
- *   - getAllSurprises (now using PathzNFTContractAddress)
+ *   - getAllSurprises (from PathzNFTContractAddress)
  */
 export async function GET(request) {
   const origin = request.headers.get('Origin') || '';
@@ -94,6 +94,7 @@ export async function GET(request) {
       return errorResponse('Missing walletAddress parameter', 400, origin);
     }
 
+    // Your NFT contract
     const nftContract = PathzNFTContractAddress;
 
     const apiKey = process.env.ALCHEMY_API_KEY;
@@ -111,6 +112,7 @@ export async function GET(request) {
       return errorResponse('Invalid network parameter. Use "mainnet" or "sepolia".', 400, origin);
     }
 
+    // Fetch NFTs for the owner from Alchemy
     const alchemyResponse = await axios.get(`${baseURL}/getNFTs`, {
       params: {
         owner: walletAddress,
@@ -118,11 +120,13 @@ export async function GET(request) {
       },
     });
 
+    // Minimal NFT data
     let nftData = (alchemyResponse.data.ownedNfts || []).map((nft) => ({
       metadata: nft.metadata,
       media: nft.media,
     }));
 
+    // Collect the "edition" numbers for each minted NFT
     const pathzIDsParams = nftData
       .map((item) => item?.metadata?.edition)
       .filter(Boolean);
@@ -141,7 +145,12 @@ export async function GET(request) {
         };
         const provider = new JsonRpcProvider(networkUrls[network]);
 
-        const portalContract = new Contract(multiversePortalContractAddress, multiversePortalContractAbi, provider);
+        // 1. Grab story data from MultiversePortal
+        const portalContract = new Contract(
+          multiversePortalContractAddress,
+          multiversePortalContractAbi,
+          provider
+        );
 
         const rawResult = await portalContract.getAllPathStories(pathzIDsParams);
         const result = cleanBigInt(rawResult);
@@ -156,6 +165,7 @@ export async function GET(request) {
           finalDeadlineTimestamp = Number(deadlineTimestamp);
           finalActive = !!active;
 
+          // Update the NFT's "treePath" attribute if the contract says there's a new path
           if (Array.isArray(newTreePaths)) {
             const editionToPathMap = {};
             for (const [editionStr, treePath] of newTreePaths) {
@@ -179,6 +189,7 @@ export async function GET(request) {
             });
           }
 
+          // Build out the array of pathStory objects
           if (Array.isArray(pathStoriesArr)) {
             allPathStoriesDetails = pathStoriesArr.map((ps) => {
               const pathStoryNumber = Number(ps[0]);
@@ -194,29 +205,51 @@ export async function GET(request) {
                 characterTraitsHistoryCID,
                 encPathResultAndIncreaseCID: encPathResultAndIncreaseCIDValue || "",
                 decKey: theKey || "",
-                decIV: theIV || ""
+                decIV: theIV || "",
               };
             });
           }
         }
 
-        // Now call getAllSurprises from PathzNFTContract
-        const nftContractInstance = new Contract(PathzNFTContractAddress, PathzNFTContractAbi, provider);
+        // 2. Grab the 'allSurprises' from PathzNFT contract
+        const nftContractInstance = new Contract(
+          PathzNFTContractAddress,
+          PathzNFTContractAbi,
+          provider
+        );
         const rawSurprises = await nftContractInstance.getAllSurprises();
         allSurprises = cleanBigInt(rawSurprises);
+
       } catch (err) {
         console.error('Error fetching data:', err);
       }
     }
 
+    /**
+     * If you'd like to replicate the previous router’s logic of adding 
+     * "pathStoryDetails" within "currentPathStory", you can pick whichever 
+     * story object you want as `pathStoryDetails`. 
+     * 
+     * Here, we take the last element in `allPathStoriesDetails` if it exists:
+     */
+    let pathStoryDetails = null;
+    if (allPathStoriesDetails.length > 0) {
+      pathStoryDetails = allPathStoriesDetails[allPathStoriesDetails.length - 1];
+    }
+
+    // Build the final response body
     const responseBody = {
       nfts: nftData,
       currentPathStory: {
         deadlineTimestamp: finalDeadlineTimestamp,
         active: finalActive,
         baseURL: baseURLValue,
+        // Insert the new "pathStoryDetails" property:
+        pathStoryDetails,
+        // Keep the array of all stories as well:
         allPathStoriesDetails,
       },
+      // Surprises remain separate
       allSurprises,
     };
 
@@ -235,6 +268,9 @@ export async function GET(request) {
   }
 }
 
+/**
+ * Utility function to safely convert BigInts to strings.
+ */
 function cleanBigInt(value) {
   if (typeof value === 'bigint') {
     return value.toString();
