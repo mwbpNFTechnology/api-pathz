@@ -72,6 +72,7 @@ export function broadcastUpdate(update) {
     try {
       ws.send(payload);
     } catch (_err) {  // renamed err to _err
+      console.error('WebSocket send error:', err);
       removeSocket(ws);
     }
   }
