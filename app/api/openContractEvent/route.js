@@ -1,5 +1,14 @@
-let connectedClients = []; // holds references to all active WebSocket connections
+// app/api/openContractEvent/route.js
 
+// Tell Next.js we want Node.js runtime:
+export const config = { runtime: 'nodejs' };
+
+import { addClient, removeClient } from './wsManager'; 
+// ^ Note: We do *not* import broadcastUpdate here unless the route needs it
+
+/**
+ * Handle all requests to /api/openContractEvent
+ */
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const network = searchParams.get('network') || 'sepolia';
@@ -9,71 +18,56 @@ export async function GET(request) {
     return new Response(JSON.stringify({ error: 'ALCHEMY_API_KEY missing' }), { status: 500 });
   }
 
-  // Validate network parameter
+  // Validate network param
   if (network !== 'mainnet' && network !== 'sepolia') {
     return new Response(JSON.stringify({ error: 'Invalid network' }), { status: 400 });
   }
 
-  const upgradeHeader = request.headers.get("upgrade") || "";
-  if (upgradeHeader.toLowerCase() === "websocket") {
+  // 1. Check if this is a WebSocket upgrade
+  const upgradeHeader = request.headers.get('upgrade') || '';
+  if (upgradeHeader.toLowerCase() === 'websocket') {
     const [clientSocket, serverSocket] = Object.values(new WebSocketPair());
-    serverSocket.accept(); 
-    connectedClients.push(serverSocket);
+    serverSocket.accept();
 
+    // 2. Add to active connections
+    addClient(serverSocket);
+
+    // 3. Handle messages/close/error
     serverSocket.onmessage = (event) => {
-      console.log("Client says:", event.data);
+      console.log('Client says:', event.data);
     };
-    serverSocket.onclose = () => removeSocket(serverSocket);
-    serverSocket.onerror = () => removeSocket(serverSocket);
+    serverSocket.onclose = () => removeClient(serverSocket);
+    serverSocket.onerror = () => removeClient(serverSocket);
 
+    // 4. Return a 101 Switching Protocols response for the handshake
     return new Response(null, {
       status: 101,
       webSocket: clientSocket,
-      headers: corsHeaders(),
+      headers: { 'Access-Control-Allow-Origin': '*' },
     });
   }
 
-  const data = { message: "Hello from openContractEvent. Connect via WebSocket to get real-time updates." };
+  // If not a WebSocket request, return JSON
+  const data = { message: 'Hello from openContractEvent. Connect via WebSocket for real-time updates.' };
   return new Response(JSON.stringify(data), {
     status: 200,
     headers: {
-      "Content-Type": "application/json",
-      ...corsHeaders(),
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Credentials': 'true',
     },
   });
 }
 
+// If you need OPTIONS:
 export async function OPTIONS() {
   return new Response(null, {
     status: 204,
     headers: {
-      ...corsHeaders(),
-      "Access-Control-Allow-Methods": "GET,OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, Pragma, Cache-Control",
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Credentials': 'true',
+      'Access-Control-Allow-Methods': 'GET,OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, Pragma, Cache-Control',
     },
   });
-}
-
-function corsHeaders() {
-  return {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Credentials": "true",
-  };
-}
-
-function removeSocket(socket) {
-  connectedClients = connectedClients.filter((s) => s !== socket);
-}
-
-export function broadcastUpdate(update) {
-  const payload = typeof update === "object" ? JSON.stringify(update) : String(update);
-
-  for (const ws of connectedClients) {
-    try {
-      ws.send(payload);
-    } catch (_err) {  // renamed err to _err
-      console.error('WebSocket send error:', _err);
-      removeSocket(ws);
-    }
-  }
 }
