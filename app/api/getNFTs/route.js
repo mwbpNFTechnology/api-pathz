@@ -1,5 +1,3 @@
-// app/api/getNFTs/route.js
-
 import axios from 'axios';
 import { JsonRpcProvider, Contract } from 'ethers';
 import { 
@@ -9,25 +7,17 @@ import {
   PathzNFTContractAbi 
 } from '../../../lib/contractConfig'; 
 
-// Only these origins are allowed; all others will be disallowed.
-const ALLOWED_ORIGINS = [
-  'https://dapp.pathz.xyz',
-  'https://stackblitz.com',
-  'https://zp1v56uxy8rdx5ypatb0ockcb9tr6a-oci3--5173--c8c182a3.local-credentialless.webcontainer-api.io',
-  'https://cors-proxy-production.stackblitz.workers.dev',
-  'https://cors-proxy-production.stackblitz.workers.dev'
-];
-
 // Optional: Node.js runtime for Next.js
 export const runtime = 'nodejs';
 
 /**
- * Sets CORS headers for allowed origins.
+ * Sets CORS headers for the given response and origin.
  * @param {Response} response - The response object.
  * @param {string} origin - The origin of the request.
- * @returns {Response} - The response with CORS headers set if origin is allowed.
+ * @returns {Response} - The response with CORS headers set.
  */
 function setCorsHeaders(response, origin) {
+  // Echo back the origin for CORS
   response.headers.set('Access-Control-Allow-Origin', origin);
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   response.headers.set(
@@ -39,7 +29,7 @@ function setCorsHeaders(response, origin) {
 }
 
 /**
- * Constructs an error response with appropriate CORS headers for allowed origins.
+ * Constructs an error response with appropriate CORS headers.
  * @param {string} message - The error message.
  * @param {number} statusCode - The HTTP status code.
  * @param {string} origin - The origin of the request.
@@ -49,26 +39,17 @@ function errorResponse(message, statusCode, origin) {
   const body = JSON.stringify({ error: message });
   const response = new Response(body, {
     status: statusCode,
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
   });
-
-  if (ALLOWED_ORIGINS.includes(origin)) {
-    setCorsHeaders(response, origin);
-  }
-
+  setCorsHeaders(response, origin);
   return response;
 }
 
 /**
- * Handles preflight OPTIONS requests. Disallows if origin is not in ALLOWED_ORIGINS.
+ * Handles preflight OPTIONS requests for CORS.
  */
 export async function OPTIONS(request) {
   const origin = request.headers.get('Origin') || '';
-  if (!ALLOWED_ORIGINS.includes(origin)) {
-    return errorResponse('CORS Error: Origin not allowed', 403, origin);
-  }
   const response = new Response(null, { status: 204 });
   setCorsHeaders(response, origin);
   return response;
@@ -81,10 +62,6 @@ export async function OPTIONS(request) {
  */
 export async function GET(request) {
   const origin = request.headers.get('Origin') || '';
-
-  if (!ALLOWED_ORIGINS.includes(origin)) {
-    return errorResponse('CORS Error: Origin not allowed', 403, origin);
-  }
 
   try {
     const { searchParams } = new URL(request.url);
@@ -226,31 +203,20 @@ export async function GET(request) {
       }
     }
 
-    /**
-     * If you'd like to replicate the previous router’s logic of adding 
-     * "pathStoryDetails" within "currentPathStory", you can pick whichever 
-     * story object you want as `pathStoryDetails`. 
-     * 
-     * Here, we take the last element in `allPathStoriesDetails` if it exists:
-     */
     let pathStoryDetails = null;
     if (allPathStoriesDetails.length > 0) {
       pathStoryDetails = allPathStoriesDetails[allPathStoriesDetails.length - 1];
     }
 
-    // Build the final response body
     const responseBody = {
       nfts: nftData,
       currentPathStory: {
         deadlineTimestamp: finalDeadlineTimestamp,
         active: finalActive,
         baseURL: baseURLValue,
-        // Insert the new "pathStoryDetails" property:
         pathStoryDetails,
-        // Keep the array of all stories as well:
         allPathStoriesDetails,
       },
-      // Surprises remain separate
       allSurprises,
     };
 
