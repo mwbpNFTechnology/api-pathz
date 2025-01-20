@@ -14,6 +14,7 @@ const ALLOWED_ORIGINS = [
   'https://dapp.pathz.xyz',
   'https://stackblitz.com',
   'https://zp1v56uxy8rdx5ypatb0ockcb9tr6a-oci3--5173--c8c182a3.local-credentialless.webcontainer-api.io',
+  'https://cors-proxy-production.stackblitz.workers.dev',
   'https://cors-proxy-production.stackblitz.workers.dev'
 ];
 
