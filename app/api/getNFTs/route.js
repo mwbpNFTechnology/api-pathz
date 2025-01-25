@@ -1,3 +1,5 @@
+// app/api/getNFTs/route.js
+
 import axios from 'axios';
 import { JsonRpcProvider, Contract } from 'ethers';
 import { 
@@ -196,10 +198,19 @@ export async function GET(request) {
           provider
         );
         const rawSurprises = await nftContractInstance.getAllSurprises();
-        allSurprises = cleanBigInt(rawSurprises);
+        allSurprises = cleanBigInt(rawSurprises).map((surprise) => ({
+          wonPathzID: surprise[0],
+          wonTreePath: surprise[1],
+          totalAnsweredPathz: surprise[2],
+          randomNumber: surprise[3],
+          whatGet: surprise[4],
+          answeredPathzIDs: surprise[5],
+        }));
 
       } catch (err) {
         console.error('Error fetching data:', err);
+        // Optionally, you can return an error response here
+        return errorResponse('Error fetching contract data', 500, origin);
       }
     }
 
