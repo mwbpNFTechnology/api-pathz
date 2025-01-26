@@ -199,12 +199,12 @@ export async function GET(request) {
         );
         const rawSurprises = await nftContractInstance.getAllSurprises();
         allSurprises = cleanBigInt(rawSurprises).map((surprise) => ({
-          wonPathzID: surprise[0],
+          wonPathzID: Number(surprise[0]), // Convert to number
           wonTreePath: surprise[1],
-          totalAnsweredPathz: surprise[2],
-          randomNumber: surprise[3],
+          totalAnsweredPathz: Number(surprise[2]), // Convert to number
+          randomNumber: surprise[3], // Keep as string to preserve large value
           whatGet: surprise[4],
-          answeredPathzIDs: surprise[5],
+          answeredPathzIDs: surprise[5].map(id => Number(id)), // Convert each ID to number
         }));
 
       } catch (err) {
