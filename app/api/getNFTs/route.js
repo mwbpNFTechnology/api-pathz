@@ -61,6 +61,7 @@ export async function OPTIONS(request) {
  * Main GET endpoint: fetches NFTs via Alchemy and then calls contract methods
  *   - getAllPathStories
  *   - getAllSurprises (from PathzNFTContractAddress)
+ *   - getTreePathsForPathzIDs (from MultiversePortalContractAddress)
  */
 export async function GET(request) {
   const origin = request.headers.get('Origin') || '';
@@ -117,14 +118,15 @@ export async function GET(request) {
     let allPathStoriesDetails = [];
     let allSurprises = [];
 
+    // Initialize provider outside the conditional block to reuse it later
+    const networkUrls = {
+      mainnet: `https://eth-mainnet.alchemyapi.io/v2/${apiKey}`,
+      sepolia: `https://eth-sepolia.g.alchemy.com/v2/${apiKey}`,
+    };
+    const provider = new JsonRpcProvider(networkUrls[network]);
+
     if (pathzIDsParams.length > 0) {
       try {
-        const networkUrls = {
-          mainnet: `https://eth-mainnet.alchemyapi.io/v2/${apiKey}`,
-          sepolia: `https://eth-sepolia.g.alchemy.com/v2/${apiKey}`,
-        };
-        const provider = new JsonRpcProvider(networkUrls[network]);
-
         // 1. Grab story data from MultiversePortal
         const portalContract = new Contract(
           multiversePortalContractAddress,
@@ -202,10 +204,67 @@ export async function GET(request) {
           wonPathzID: Number(surprise[0]), // Convert to number
           wonTreePath: surprise[1],
           totalAnsweredPathz: Number(surprise[2]), // Convert to number
-          randomNumber: surprise[3], // Keep as string to preserve large value
+          randomNumber: surprise[3].toString(), // Convert BigInt to string to preserve large value
           whatGet: surprise[4],
           answeredPathzIDs: surprise[5].map(id => Number(id)), // Convert each ID to number
         }));
+
+        // **New Additions Start Here**
+
+        // 3. Check the last surprise's answeredPathzIDs and call getTreePathsForPathzIDs
+        if (allSurprises.length > 0) {
+          const lastSurprise = allSurprises[allSurprises.length - 1];
+          const wonPathzID = lastSurprise.wonPathzID; // Retrieve wonPathzID
+          const wonTreePath = lastSurprise.wonTreePath.toLowerCase(); // Normalize for comparison
+
+          if (lastSurprise.answeredPathzIDs && lastSurprise.answeredPathzIDs.length > 0) {
+            const pathzIDs = lastSurprise.answeredPathzIDs;
+
+            // Instantiate the MultiversePortal contract
+            const multiversePortalContract = new Contract(
+              multiversePortalContractAddress,
+              multiversePortalContractAbi,
+              provider
+            );
+
+            try {
+              // Call the getTreePathsForPathzIDs function
+              const treePaths = await multiversePortalContract.getTreePathsForPathzIDs(pathzIDs);
+              
+              // Clean the BigInts
+              const cleanedTreePaths = cleanBigInt(treePaths); // Assuming it returns array of arrays like [ [ '2', 'x-y' ], ... ]
+
+              // **Filter out tree paths with pathzID === 1 and pathzID === wonPathzID**
+              const filteredTreePaths = cleanedTreePaths.filter(path => {
+                const pathID = Number(path[0]); // Assuming path is an array like [ '2', 'x-y' ]
+                return pathID !== 1 && pathID !== wonPathzID;
+              });
+
+              // **Filter tree paths where treePath matches wonTreePath (case-insensitive)**
+              const matchingTreePaths = filteredTreePaths.filter(path => {
+                const treePath = path[1].toLowerCase();
+                return treePath === wonTreePath;
+              });
+
+              // **Extract only the pathzIDs that match wonTreePath**
+              const pathzIDsTreePathWon = matchingTreePaths.map(path => Number(path[0]));
+
+              // **Add the pathzIDsTreePathWon to the lastSurprise object**
+              lastSurprise.pathzIDsTreePathWon = pathzIDsTreePathWon;
+
+              // Log the matching tree paths
+              console.log('Matching Tree Paths for Pathz IDs:', matchingTreePaths);
+            } catch (contractError) {
+              console.error('Error calling getTreePathsForPathzIDs:', contractError);
+            }
+          } else {
+            console.log('No answeredPathzIDs found in the last surprise.');
+          }
+        } else {
+          console.log('No surprises found.');
+        }
+
+        // **New Additions End Here**
 
       } catch (err) {
         console.error('Error fetching data:', err);
@@ -229,6 +288,8 @@ export async function GET(request) {
         allPathStoriesDetails,
       },
       allSurprises,
+      // Remove filteredTreePaths from the response
+      // filteredTreePaths, 
     };
 
     const response = new Response(JSON.stringify(responseBody), {
@@ -237,6 +298,7 @@ export async function GET(request) {
     });
     setCorsHeaders(response, origin);
     return response;
+
   } catch (error) {
     console.error('Error fetching NFTs:', error);
     if (error.response) {
