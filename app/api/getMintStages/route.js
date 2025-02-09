@@ -1,6 +1,6 @@
 // app/api/getMintStage/route.js
 
-import { JsonRpcProvider, Contract, formatEther } from 'ethers';
+import { JsonRpcProvider, Contract, formatEther, isAddress } from 'ethers';
 import { PathzNFTContractAddress, PathzNFTContractAbi } from '../../../lib/contractConfig';
 
 export const runtime = 'nodejs';
@@ -36,6 +36,8 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const network = searchParams.get('network') || 'mainnet';
+    const walletAddress = searchParams.get('walletAddress'); // optional query parameter
+
     
     // Use the current timestamp (in seconds) from Date instead of a query parameter.
     const timestampToUse = Math.floor(Date.now() / 1000);
@@ -80,14 +82,29 @@ export async function GET(request) {
     const startTimestamp = Number(mintStage.startTimestamp);
     const endTimestamp = Number(mintStage.endTimestamp);
 
+    // If walletAddress is provided, validate it and get the balance.
+    let walletPathzBalance;
+    if (walletAddress) {
+      if (!isAddress(walletAddress)) {
+        return errorResponse('Invalid wallet address provided.', 400, origin);
+      }
+      const balanceBN = await nftContract.balanceOf(walletAddress);
+      walletPathzBalance = Number(balanceBN);
+      console.log("walletPathzBalance: ", walletPathzBalance);
+    }
+
+
+
     const responseBody = {
       totalMintCap,
       maxPerWallet,
       price: priceEth,
       startTimestamp,
       endTimestamp,
-      totalMinted
+      totalMinted,
+      ...(walletAddress ? { walletPathzBalance } : {})
     };
+
 
     const response = new Response(JSON.stringify(responseBody), {
       status: 200,
