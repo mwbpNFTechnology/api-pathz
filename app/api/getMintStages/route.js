@@ -1,5 +1,3 @@
-// app/api/getMintStage/route.js
-
 import { JsonRpcProvider, Contract, formatEther } from 'ethers';
 import { PathzNFTContractAddress, PathzNFTContractAbi } from '../../../lib/contractConfig';
 
@@ -73,6 +71,7 @@ export async function GET(request) {
     const totalMinted = Number(mintedResult);
 
     // Process the returned mint stage struct.
+    const stageNumber = Number(mintStage.stageNumber); // <-- Added stageNumber extraction
     const totalMintCap = Number(mintStage.totalMintCap);
     const maxPerWallet = Number(mintStage.maxPerWallet);
     const priceWei = mintStage.price.toString();
@@ -81,6 +80,7 @@ export async function GET(request) {
     const endTimestamp = Number(mintStage.endTimestamp);
 
     const responseBody = {
+      stageNumber,    // <-- Included stageNumber in the response
       totalMintCap,
       maxPerWallet,
       price: priceEth,
