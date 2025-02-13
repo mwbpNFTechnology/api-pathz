@@ -13,13 +13,35 @@ import {
 export const runtime = 'nodejs';
 
 /**
+ * Checks if the given origin is allowed.
+ * Allows domains and subdomains of "pathz.xyz" and "mwbp.io".
+ *
+ * @param {string} origin - The Origin header from the request.
+ * @returns {boolean} - True if the origin is allowed.
+ */
+function isAllowedOrigin(origin) {
+  try {
+    const url = new URL(origin);
+    const hostname = url.hostname;
+    return (
+      hostname === 'pathz.xyz' ||
+      hostname.endsWith('.pathz.xyz') ||
+      hostname === 'mwbp.io' ||
+      hostname.endsWith('.mwbp.io')
+    );
+  } catch (error) {
+    // If origin is not a valid URL, reject it
+    return false;
+  }
+}
+
+/**
  * Sets CORS headers for the given response and origin.
  * @param {Response} response - The response object.
  * @param {string} origin - The origin of the request.
  * @returns {Response} - The response with CORS headers set.
  */
 function setCorsHeaders(response, origin) {
-  // Echo back the origin for CORS
   response.headers.set('Access-Control-Allow-Origin', origin);
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   response.headers.set(
@@ -52,6 +74,12 @@ function errorResponse(message, statusCode, origin) {
  */
 export async function OPTIONS(request) {
   const origin = request.headers.get('Origin') || '';
+  
+  // Reject the request if the origin is not allowed.
+  if (!isAllowedOrigin(origin)) {
+    return errorResponse('Unauthorized origin', 403, origin);
+  }
+
   const response = new Response(null, { status: 204 });
   setCorsHeaders(response, origin);
   return response;
@@ -59,12 +87,14 @@ export async function OPTIONS(request) {
 
 /**
  * Main GET endpoint: fetches NFTs via Alchemy and then calls contract methods
- *   - getAllPathStories
- *   - getAllSurprises (from PathzNFTContractAddress)
- *   - getTreePathsForPathzIDs (from MultiversePortalContractAddress)
  */
 export async function GET(request) {
   const origin = request.headers.get('Origin') || '';
+
+  // Only allow requests from allowed domains
+  if (!isAllowedOrigin(origin)) {
+    return errorResponse('Unauthorized origin', 403, origin);
+  }
 
   try {
     const { searchParams } = new URL(request.url);
@@ -118,7 +148,7 @@ export async function GET(request) {
     let allPathStoriesDetails = [];
     let allSurprises = [];
 
-    // Initialize provider outside the conditional block to reuse it later
+    // Initialize provider
     const networkUrls = {
       mainnet: `https://eth-mainnet.alchemyapi.io/v2/${apiKey}`,
       sepolia: `https://eth-sepolia.g.alchemy.com/v2/${apiKey}`,
@@ -127,7 +157,7 @@ export async function GET(request) {
 
     if (pathzIDsParams.length > 0) {
       try {
-        // 1. Grab story data from MultiversePortal
+        // 1. Get story data from MultiversePortal
         const portalContract = new Contract(
           multiversePortalContractAddress,
           multiversePortalContractAbi,
@@ -147,7 +177,7 @@ export async function GET(request) {
           finalDeadlineTimestamp = Number(deadlineTimestamp);
           finalActive = !!active;
 
-          // Update the NFT's "treePath" attribute if the contract says there's a new path
+          // Update the NFT's "treePath" attribute if applicable
           if (Array.isArray(newTreePaths)) {
             const editionToPathMap = {};
             for (const [editionStr, treePath] of newTreePaths) {
@@ -193,7 +223,7 @@ export async function GET(request) {
           }
         }
 
-        // 2. Grab the 'allSurprises' from PathzNFT contract
+        // 2. Get the 'allSurprises' from PathzNFT contract
         const nftContractInstance = new Contract(
           PathzNFTContractAddress,
           PathzNFTContractAbi,
@@ -201,26 +231,23 @@ export async function GET(request) {
         );
         const rawSurprises = await nftContractInstance.getAllSurprises();
         allSurprises = cleanBigInt(rawSurprises).map((surprise) => ({
-          wonPathzID: Number(surprise[0]), // Convert to number
+          wonPathzID: Number(surprise[0]),
           wonTreePath: surprise[1],
-          totalAnsweredPathz: Number(surprise[2]), // Convert to number
-          randomNumber: surprise[3].toString(), // Convert BigInt to string to preserve large value
+          totalAnsweredPathz: Number(surprise[2]),
+          randomNumber: surprise[3].toString(),
           whatGet: surprise[4],
-          answeredPathzIDs: surprise[5].map(id => Number(id)), // Convert each ID to number
+          answeredPathzIDs: surprise[5].map(id => Number(id)),
         }));
 
-        // **New Additions Start Here**
-
-        // 3. Check the last surprise's answeredPathzIDs and call getTreePathsForPathzIDs
+        // New Addition: Check last surprise's answeredPathzIDs and call getTreePathsForPathzIDs
         if (allSurprises.length > 0) {
           const lastSurprise = allSurprises[allSurprises.length - 1];
-          const wonPathzID = lastSurprise.wonPathzID; // Retrieve wonPathzID
-          const wonTreePath = lastSurprise.wonTreePath.toLowerCase(); // Normalize for comparison
+          const wonPathzID = lastSurprise.wonPathzID;
+          const wonTreePath = lastSurprise.wonTreePath.toLowerCase();
 
           if (lastSurprise.answeredPathzIDs && lastSurprise.answeredPathzIDs.length > 0) {
             const pathzIDs = lastSurprise.answeredPathzIDs;
 
-            // Instantiate the MultiversePortal contract
             const multiversePortalContract = new Contract(
               multiversePortalContractAddress,
               multiversePortalContractAbi,
@@ -228,31 +255,22 @@ export async function GET(request) {
             );
 
             try {
-              // Call the getTreePathsForPathzIDs function
               const treePaths = await multiversePortalContract.getTreePathsForPathzIDs(pathzIDs);
-              
-              // Clean the BigInts
-              const cleanedTreePaths = cleanBigInt(treePaths); // Assuming it returns array of arrays like [ [ '2', 'x-y' ], ... ]
+              const cleanedTreePaths = cleanBigInt(treePaths);
 
-              // **Filter out tree paths with pathzID === 1 and pathzID === wonPathzID**
               const filteredTreePaths = cleanedTreePaths.filter(path => {
-                const pathID = Number(path[0]); // Assuming path is an array like [ '2', 'x-y' ]
+                const pathID = Number(path[0]);
                 return pathID !== 1 && pathID !== wonPathzID;
               });
 
-              // **Filter tree paths where treePath matches wonTreePath (case-insensitive)**
               const matchingTreePaths = filteredTreePaths.filter(path => {
                 const treePath = path[1].toLowerCase();
                 return treePath === wonTreePath;
               });
 
-              // **Extract only the pathzIDs that match wonTreePath**
               const pathzIDsTreePathWon = matchingTreePaths.map(path => Number(path[0]));
 
-              // **Add the pathzIDsTreePathWon to the lastSurprise object**
               lastSurprise.pathzIDsTreePathWon = pathzIDsTreePathWon;
-
-              // Log the matching tree paths
               console.log('Matching Tree Paths for Pathz IDs:', matchingTreePaths);
             } catch (contractError) {
               console.error('Error calling getTreePathsForPathzIDs:', contractError);
@@ -264,11 +282,8 @@ export async function GET(request) {
           console.log('No surprises found.');
         }
 
-        // **New Additions End Here**
-
       } catch (err) {
         console.error('Error fetching data:', err);
-        // Optionally, you can return an error response here
         return errorResponse('Error fetching contract data', 500, origin);
       }
     }
@@ -288,8 +303,6 @@ export async function GET(request) {
         allPathStoriesDetails,
       },
       allSurprises,
-      // Remove filteredTreePaths from the response
-      // filteredTreePaths, 
     };
 
     const response = new Response(JSON.stringify(responseBody), {
