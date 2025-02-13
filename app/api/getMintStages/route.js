@@ -20,7 +20,7 @@ function isAllowedOrigin(origin) {
       hostname === 'mwbp.io' ||
       hostname.endsWith('.mwbp.io')
     );
-  } catch (error) {
+  } catch (_error) {
     return false;
   }
 }

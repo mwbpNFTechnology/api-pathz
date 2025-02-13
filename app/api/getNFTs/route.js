@@ -29,7 +29,7 @@ function isAllowedOrigin(origin) {
       hostname === 'mwbp.io' ||
       hostname.endsWith('.mwbp.io')
     );
-  } catch (error) {
+  } catch (_error) {
     // If origin is not a valid URL, reject it
     return false;
   }
