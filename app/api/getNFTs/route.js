@@ -1,5 +1,3 @@
-// app/api/getNFTs/route.js
-
 import axios from 'axios';
 import { JsonRpcProvider, Contract } from 'ethers';
 import { 
@@ -7,10 +5,43 @@ import {
   multiversePortalContractAbi, 
   PathzNFTContractAddress, 
   PathzNFTContractAbi 
-} from '../../../lib/contractConfig'; 
+} from '../../../lib/contractConfig';
 
 // Optional: Node.js runtime for Next.js
 export const runtime = 'nodejs';
+
+/**
+ * Rate limiting configuration
+ */
+const ipRateLimit = {};
+const RATE_LIMIT_WINDOW_MS = 60000; // 60 seconds window
+const MAX_REQUESTS_PER_WINDOW = 10;   // Allow up to 10 requests per window
+
+/**
+ * Checks if the given IP address has exceeded the rate limit.
+ * @param {string} ip - The client's IP address.
+ * @returns {boolean} - Returns true if the limit is exceeded.
+ */
+function checkRateLimit(ip) {
+  const currentTime = Date.now();
+  if (!ipRateLimit[ip]) {
+    ipRateLimit[ip] = { count: 1, startTime: currentTime };
+    return false;
+  } else {
+    const diff = currentTime - ipRateLimit[ip].startTime;
+    if (diff > RATE_LIMIT_WINDOW_MS) {
+      // Reset the window and count
+      ipRateLimit[ip] = { count: 1, startTime: currentTime };
+      return false;
+    } else {
+      ipRateLimit[ip].count++;
+      if (ipRateLimit[ip].count > MAX_REQUESTS_PER_WINDOW) {
+        return true;
+      }
+      return false;
+    }
+  }
+}
 
 /**
  * Checks if the given origin is allowed.
@@ -75,6 +106,17 @@ function errorResponse(message, statusCode, origin) {
 export async function OPTIONS(request) {
   const origin = request.headers.get('Origin') || '';
   
+  // Get the client's IP address
+  const ip =
+    request.headers.get('x-forwarded-for') ||
+    request.headers.get('x-real-ip') ||
+    'unknown';
+  
+  // Check IP rate limit
+  if (checkRateLimit(ip)) {
+    return errorResponse('Too many requests', 429, origin);
+  }
+  
   // Reject the request if the origin is not allowed.
   if (!isAllowedOrigin(origin)) {
     return errorResponse('Unauthorized origin', 403, origin);
@@ -86,10 +128,21 @@ export async function OPTIONS(request) {
 }
 
 /**
- * Main GET endpoint: fetches NFTs via Alchemy and then calls contract methods
+ * Main GET endpoint: fetches NFTs via Alchemy and then calls contract methods.
  */
 export async function GET(request) {
   const origin = request.headers.get('Origin') || '';
+  
+  // Get the client's IP address
+  const ip =
+    request.headers.get('x-forwarded-for') ||
+    request.headers.get('x-real-ip') ||
+    'unknown';
+  
+  // Check IP rate limit
+  if (checkRateLimit(ip)) {
+    return errorResponse('Too many requests', 429, origin);
+  }
 
   // Only allow requests from allowed domains
   if (!isAllowedOrigin(origin)) {
@@ -105,7 +158,7 @@ export async function GET(request) {
       return errorResponse('Missing walletAddress parameter', 400, origin);
     }
 
-    // Your NFT contract
+    // Your NFT contract address
     const nftContract = PathzNFTContractAddress;
 
     const apiKey = process.env.ALCHEMY_API_KEY;
