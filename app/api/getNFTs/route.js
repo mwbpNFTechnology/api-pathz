@@ -17,6 +17,7 @@ const ipRateLimit = {};
 const RATE_LIMIT_WINDOW_MS = 60000; // 60 seconds window
 const MAX_REQUESTS_PER_WINDOW = 10;   // Allow up to 10 requests per window
 
+
 /**
  * Checks if the given IP address has exceeded the rate limit.
  * @param {string} ip - The client's IP address.
