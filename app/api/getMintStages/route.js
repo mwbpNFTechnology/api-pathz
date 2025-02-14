@@ -4,36 +4,46 @@ import { PathzNFTContractAddress, PathzNFTContractAbi } from '../../../lib/contr
 export const runtime = 'nodejs';
 
 /**
- * Checks if the given origin is allowed.
- * Allows domains and subdomains of "pathz.xyz" and "mwbp.io".
- *
- * @param {string} origin - The Origin header from the request.
- * @returns {boolean} - True if the origin is allowed.
+ * Rate limiting configuration
  */
-function isAllowedOrigin(origin) {
-  try {
-    const url = new URL(origin);
-    const hostname = url.hostname;
-    return (
-      hostname === 'pathz.xyz' ||
-      hostname.endsWith('.pathz.xyz') ||
-      hostname === 'mwbp.io' ||
-      hostname.endsWith('.mwbp.io')
-    );
-  } catch {
+const ipRateLimit = {};
+const RATE_LIMIT_WINDOW_MS = 60000; // 60 seconds (1 minute) window
+const MAX_REQUESTS_PER_WINDOW = 1;   // Allow up to 1 request per window
+
+/**
+ * Checks if the given IP address has exceeded the rate limit.
+ * @param {string} ip - The client's IP address.
+ * @returns {boolean} - Returns true if the limit is exceeded (block the request).
+ */
+function checkRateLimit(ip) {
+  const currentTime = Date.now();
+  if (!ipRateLimit[ip]) {
+    ipRateLimit[ip] = { count: 1, startTime: currentTime };
     return false;
+  } else {
+    const diff = currentTime - ipRateLimit[ip].startTime;
+    if (diff > RATE_LIMIT_WINDOW_MS) {
+      // Reset the window and count
+      ipRateLimit[ip] = { count: 1, startTime: currentTime };
+      return false;
+    } else {
+      ipRateLimit[ip].count++;
+      if (ipRateLimit[ip].count > MAX_REQUESTS_PER_WINDOW) {
+        return true;
+      }
+      return false;
+    }
   }
 }
 
 /**
- * Sets CORS headers for the given response and origin.
- *
+ * Sets CORS headers for the response.
+ * Here we set Access-Control-Allow-Origin to "*" to allow requests from any origin.
  * @param {Response} response - The response object.
- * @param {string} origin - The origin of the request.
  * @returns {Response} - The response with CORS headers set.
  */
-function setCorsHeaders(response, origin) {
-  response.headers.set('Access-Control-Allow-Origin', origin);
+function setCorsHeaders(response) {
+  response.headers.set('Access-Control-Allow-Origin', '*');
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   response.headers.set(
     'Access-Control-Allow-Headers',
@@ -45,42 +55,49 @@ function setCorsHeaders(response, origin) {
 
 /**
  * Constructs an error response with appropriate CORS headers.
- *
  * @param {string} message - The error message.
  * @param {number} statusCode - The HTTP status code.
- * @param {string} origin - The origin of the request.
  * @returns {Response} - The error response.
  */
-function errorResponse(message, statusCode, origin) {
+function errorResponse(message, statusCode) {
   const body = JSON.stringify({ error: message });
   const response = new Response(body, {
     status: statusCode,
     headers: { 'Content-Type': 'application/json' },
   });
-  setCorsHeaders(response, origin);
+  setCorsHeaders(response);
   return response;
 }
 
 /**
- * Handles preflight OPTIONS requests for CORS.
+ * Handles OPTIONS (preflight) requests for CORS.
+ * Also performs rate limiting based on the client's IP address.
  */
 export async function OPTIONS(request) {
-  const origin = request.headers.get('Origin') || '';
-  if (!isAllowedOrigin(origin)) {
-    return errorResponse('Unauthorized origin', 403, origin);
+  const ip =
+    request.headers.get('x-forwarded-for') ||
+    request.headers.get('x-real-ip') ||
+    'unknown';
+  if (checkRateLimit(ip)) {
+    return errorResponse('Too many requests', 429);
   }
+  
   const response = new Response(null, { status: 204 });
-  setCorsHeaders(response, origin);
+  setCorsHeaders(response);
   return response;
 }
 
 /**
  * Main GET endpoint: calls getMintStage and totalMinted from the NFT contract.
+ * Enforces rate limiting based on the client's IP address.
  */
 export async function GET(request) {
-  const origin = request.headers.get('Origin') || '';
-  if (!isAllowedOrigin(origin)) {
-    return errorResponse('Unauthorized origin', 403, origin);
+  const ip =
+    request.headers.get('x-forwarded-for') ||
+    request.headers.get('x-real-ip') ||
+    'unknown';
+  if (checkRateLimit(ip)) {
+    return errorResponse('Too many requests', 429);
   }
 
   try {
@@ -89,12 +106,12 @@ export async function GET(request) {
 
     // Use the current timestamp (in seconds)
     const timestampToUse = Math.floor(Date.now() / 1000);
-    console.log("Calling getMintStage with timestamp:", timestampToUse);
+    console.log('Calling getMintStage with timestamp:', timestampToUse);
 
     const apiKey = process.env.ALCHEMY_API_KEY;
     if (!apiKey) {
       console.error('Alchemy API key is not configured.');
-      return errorResponse('Alchemy API key not configured in environment variables', 500, origin);
+      return errorResponse('Alchemy API key not configured in environment variables', 500);
     }
 
     let providerURL;
@@ -103,7 +120,7 @@ export async function GET(request) {
     } else if (network === 'sepolia') {
       providerURL = `https://eth-sepolia.g.alchemy.com/v2/${apiKey}`;
     } else {
-      return errorResponse('Invalid network parameter. Use "mainnet" or "sepolia".', 400, origin);
+      return errorResponse('Invalid network parameter. Use "mainnet" or "sepolia".', 400);
     }
 
     const provider = new JsonRpcProvider(providerURL);
@@ -116,9 +133,9 @@ export async function GET(request) {
 
     // Call getMintStage with the current timestamp.
     const mintStage = await nftContract.getMintStage(timestampToUse);
-    console.log("getMintStage result:", mintStage);
+    console.log('getMintStage result:', mintStage);
 
-    // Retrieve the totalMinted number.
+    // Retrieve the total number of minted NFTs.
     const mintedResult = await nftContract.totalMinted();
     const totalMinted = Number(mintedResult);
 
@@ -132,20 +149,20 @@ export async function GET(request) {
     const endTimestamp = Number(mintStage.endTimestamp);
 
     const responseBody = {
-      stageNumber,    // current stage number
+      stageNumber,    // current mint stage number
       totalMintCap,
       maxPerWallet,
       price: priceEth,
       startTimestamp,
       endTimestamp,
-      totalMinted
+      totalMinted,
     };
 
     const response = new Response(JSON.stringify(responseBody), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-    setCorsHeaders(response, origin);
+    setCorsHeaders(response);
     return response;
   } catch (error) {
     console.error('Error in getMintStage:', error);
@@ -178,17 +195,17 @@ export async function GET(request) {
       stageNumber: 4,
       totalMintCap: 3200,         // Assuming MAX_SUPPLY is 3200
       maxPerWallet: 1,            // Adjust if needed
-      price: "0.032",             // Price in ETH as a string
+      price: '0.032',             // Price in ETH as a string
       startTimestamp: 1739215209, // Example startTimestamp
       endTimestamp: 2147483647,   // Example endTimestamp
-      totalMinted
+      totalMinted,
     };
 
     const fallbackResponse = new Response(JSON.stringify(fallbackResponseBody), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-    setCorsHeaders(fallbackResponse, origin);
+    setCorsHeaders(fallbackResponse);
     return fallbackResponse;
   }
 }
