@@ -20,7 +20,7 @@ function errorResponse(message, statusCode) {
 /**
  * Handles OPTIONS (preflight) requests.
  */
-export async function OPTIONS(request) {
+export async function OPTIONS() {
   return new Response(null, { status: 204 });
 }
 
@@ -127,7 +127,7 @@ export async function GET(request) {
       totalMinted,
     };
 
-    
+
     return new Response(JSON.stringify(fallbackResponseBody), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
