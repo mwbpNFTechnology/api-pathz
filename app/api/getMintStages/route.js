@@ -4,24 +4,45 @@ import { PathzNFTContractAddress, PathzNFTContractAbi } from '../../../lib/contr
 export const runtime = 'nodejs';
 
 /**
- * Constructs an error response.
+ * Sets CORS headers for the response.
+ * Here we set Access-Control-Allow-Origin to "*" to allow requests from any origin.
+ * @param {Response} response - The response object.
+ * @returns {Response} - The response with CORS headers set.
+ */
+function setCorsHeaders(response) {
+  response.headers.set('Access-Control-Allow-Origin', '*');
+  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  response.headers.set(
+    'Access-Control-Allow-Headers',
+    'Content-Type, Authorization, Pragma, Cache-Control'
+  );
+  response.headers.set('Access-Control-Allow-Credentials', 'true');
+  return response;
+}
+
+/**
+ * Constructs an error response with appropriate CORS headers.
  * @param {string} message - The error message.
  * @param {number} statusCode - The HTTP status code.
  * @returns {Response} - The error response.
  */
 function errorResponse(message, statusCode) {
   const body = JSON.stringify({ error: message });
-  return new Response(body, {
+  const response = new Response(body, {
     status: statusCode,
     headers: { 'Content-Type': 'application/json' },
   });
+  setCorsHeaders(response);
+  return response;
 }
 
 /**
- * Handles OPTIONS (preflight) requests.
+ * Handles OPTIONS (preflight) requests for CORS.
  */
-export async function OPTIONS() {
-  return new Response(null, { status: 204 });
+export async function OPTIONS(request) {
+  const response = new Response(null, { status: 204 });
+  setCorsHeaders(response);
+  return response;
 }
 
 /**
@@ -86,10 +107,12 @@ export async function GET(request) {
       totalMinted,
     };
 
-    return new Response(JSON.stringify(responseBody), {
+    const response = new Response(JSON.stringify(responseBody), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
+    setCorsHeaders(response);
+    return response;
   } catch (error) {
     console.error('Error in getMintStage:', error);
     // Attempt to retrieve totalMinted for the fallback response.
@@ -127,10 +150,11 @@ export async function GET(request) {
       totalMinted,
     };
 
-
-    return new Response(JSON.stringify(fallbackResponseBody), {
+    const fallbackResponse = new Response(JSON.stringify(fallbackResponseBody), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
+    setCorsHeaders(fallbackResponse);
+    return fallbackResponse;
   }
 }
