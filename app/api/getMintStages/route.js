@@ -4,102 +4,30 @@ import { PathzNFTContractAddress, PathzNFTContractAbi } from '../../../lib/contr
 export const runtime = 'nodejs';
 
 /**
- * Rate limiting configuration
- */
-const ipRateLimit = {};
-const RATE_LIMIT_WINDOW_MS = 60000; // 60 seconds (1 minute) window
-const MAX_REQUESTS_PER_WINDOW = 1;   // Allow up to 1 request per window
-
-/**
- * Checks if the given IP address has exceeded the rate limit.
- * @param {string} ip - The client's IP address.
- * @returns {boolean} - Returns true if the limit is exceeded (block the request).
- */
-function checkRateLimit(ip) {
-  const currentTime = Date.now();
-  if (!ipRateLimit[ip]) {
-    ipRateLimit[ip] = { count: 1, startTime: currentTime };
-    return false;
-  } else {
-    const diff = currentTime - ipRateLimit[ip].startTime;
-    if (diff > RATE_LIMIT_WINDOW_MS) {
-      // Reset the window and count
-      ipRateLimit[ip] = { count: 1, startTime: currentTime };
-      return false;
-    } else {
-      ipRateLimit[ip].count++;
-      if (ipRateLimit[ip].count > MAX_REQUESTS_PER_WINDOW) {
-        return true;
-      }
-      return false;
-    }
-  }
-}
-
-/**
- * Sets CORS headers for the response.
- * Here we set Access-Control-Allow-Origin to "*" to allow requests from any origin.
- * @param {Response} response - The response object.
- * @returns {Response} - The response with CORS headers set.
- */
-function setCorsHeaders(response) {
-  response.headers.set('Access-Control-Allow-Origin', '*');
-  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  response.headers.set(
-    'Access-Control-Allow-Headers',
-    'Content-Type, Authorization, Pragma, Cache-Control'
-  );
-  response.headers.set('Access-Control-Allow-Credentials', 'true');
-  return response;
-}
-
-/**
- * Constructs an error response with appropriate CORS headers.
+ * Constructs an error response.
  * @param {string} message - The error message.
  * @param {number} statusCode - The HTTP status code.
  * @returns {Response} - The error response.
  */
 function errorResponse(message, statusCode) {
   const body = JSON.stringify({ error: message });
-  const response = new Response(body, {
+  return new Response(body, {
     status: statusCode,
     headers: { 'Content-Type': 'application/json' },
   });
-  setCorsHeaders(response);
-  return response;
 }
 
 /**
- * Handles OPTIONS (preflight) requests for CORS.
- * Also performs rate limiting based on the client's IP address.
+ * Handles OPTIONS (preflight) requests.
  */
 export async function OPTIONS(request) {
-  const ip =
-    request.headers.get('x-forwarded-for') ||
-    request.headers.get('x-real-ip') ||
-    'unknown';
-  if (checkRateLimit(ip)) {
-    return errorResponse('Too many requests', 429);
-  }
-  
-  const response = new Response(null, { status: 204 });
-  setCorsHeaders(response);
-  return response;
+  return new Response(null, { status: 204 });
 }
 
 /**
  * Main GET endpoint: calls getMintStage and totalMinted from the NFT contract.
- * Enforces rate limiting based on the client's IP address.
  */
 export async function GET(request) {
-  const ip =
-    request.headers.get('x-forwarded-for') ||
-    request.headers.get('x-real-ip') ||
-    'unknown';
-  if (checkRateLimit(ip)) {
-    return errorResponse('Too many requests', 429);
-  }
-
   try {
     const { searchParams } = new URL(request.url);
     const network = searchParams.get('network') || 'mainnet';
@@ -158,12 +86,10 @@ export async function GET(request) {
       totalMinted,
     };
 
-    const response = new Response(JSON.stringify(responseBody), {
+    return new Response(JSON.stringify(responseBody), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-    setCorsHeaders(response);
-    return response;
   } catch (error) {
     console.error('Error in getMintStage:', error);
     // Attempt to retrieve totalMinted for the fallback response.
@@ -201,11 +127,9 @@ export async function GET(request) {
       totalMinted,
     };
 
-    const fallbackResponse = new Response(JSON.stringify(fallbackResponseBody), {
+    return new Response(JSON.stringify(fallbackResponseBody), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-    setCorsHeaders(fallbackResponse);
-    return fallbackResponse;
   }
 }
