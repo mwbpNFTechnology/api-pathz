@@ -127,6 +127,7 @@ export async function GET(request) {
       totalMinted,
     };
 
+    
     return new Response(JSON.stringify(fallbackResponseBody), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
