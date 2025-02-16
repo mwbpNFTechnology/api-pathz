@@ -39,7 +39,7 @@ function errorResponse(message, statusCode) {
 /**
  * Handles OPTIONS (preflight) requests for CORS.
  */
-export async function OPTIONS(request) {
+export async function OPTIONS() {
   const response = new Response(null, { status: 204 });
   setCorsHeaders(response);
   return response;
